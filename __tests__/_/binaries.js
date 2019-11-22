@@ -4,24 +4,47 @@ const os = require('os');
 const http = require('http');
 const zlib = require('zlib');
 
-export const p = os.platform();
-const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', 'package.json')).toString('utf8'));
-const v: string[] = pkg.version.split('.');
-export const binariesVersion = `${v[0]}.${v[1]}.${~~(Number.parseInt(v[2]) / 100) * 100}`;
-export const bv = binariesVersion.split('.').join('_');
-const binariesHost = 'sdkbinaries.tonlabs.io';
-export const binariesPath = path.resolve(__dirname, '..');
+function openHttpSource(binariesSource, src, onStart, onError) {
+    const url = `${binariesSource}/${src}.gz`;
+    process.stdout.write(` from ${url} ...`);
+    const request = http.get(url, response => {
+        if (response.statusCode === 200) {
+            request.on("error", err => {
+                onError(err);
+            });
+            onStart(response);
+        } else {
+            onError({
+                message: `Download failed with ${response.statusCode}: ${response.statusMessage}`,
+            });
+        }
+    });
+}
 
-function downloadAndGunzip(dest, url) {
+function openFileSource(binariesSource, src, onStart, onError) {
+    let dir = binariesSource;
+    if (/^file:/i.test(dir)) {
+        dir = binariesSource.substr(5);
+    }
+    if (dir.startsWith('~')) {
+        dir = path.resolve(os.homedir(), dir.substr(dir.startsWith('~/') ? 2 : 1));
+    }
+    const srcPath = path.resolve(dir, `${src}.gz`);
+    process.stdout.write(` from ${srcPath} ...`);
+    const stream = fs.createReadStream(srcPath, {});
+    stream.on("error", err => {
+        onError(err);
+    });
+    onStart(stream);
+}
+
+
+function downloadAndGunzip(binariesSource, dest, src) {
+    const openSource = /^https?:\/\//i.test(binariesSource)
+        ? openHttpSource
+        : openFileSource;
     return new Promise((resolve, reject) => {
-
-        const request = http.get(url, response => {
-            if (response.statusCode !== 200) {
-                reject({
-                    message: `Download failed with ${response.statusCode}: ${response.statusMessage}`,
-                });
-                return;
-            }
+        openSource(binariesSource, src, (stream) => {
             fs.mkdirSync(path.dirname(path.resolve(dest)), ({ recursive: true }: any));
             let file = fs.createWriteStream(dest, { flags: "w" });
             let opened = false;
@@ -36,17 +59,6 @@ function downloadAndGunzip(dest, url) {
                     reject(err);
                 }
             };
-
-            const unzip = zlib.createGunzip();
-            unzip.pipe(file);
-
-
-            response.pipe(unzip);
-
-
-            request.on("error", err => {
-                failed(err);
-            });
 
             file.on("finish", () => {
                 if (opened && file) {
@@ -68,25 +80,33 @@ function downloadAndGunzip(dest, url) {
                     failed(err);
                 }
             });
-        });
+
+            const unzip = zlib.createGunzip();
+            unzip.pipe(file);
+            stream.pipe(unzip);
+
+        }, reject);
     });
-
 }
 
-export async function dl(dst, src) {
-    const dstPath = path.resolve(binariesPath, dst);
-    const srcUrl = `http://${binariesHost}/${src}.gz`;
-    process.stdout.write(`Downloading ${dst} from ${binariesHost} ...`);
-    await downloadAndGunzip(dstPath, srcUrl);
-    process.stdout.write('\n');
-}
+export async function ensureBinaries(packageJsonPath, dstPath, files) {
+    const pkg = JSON.parse(fs.readFileSync(packageJsonPath).toString('utf8'));
+    const v: string[] = pkg.version.split('.');
+    const bv = `${v[0]}_${v[1]}_${~~(Number.parseInt(v[2]) / 100) * 100}`;
 
-export async function ensureBinaries() {
-    const addonPath = path.join(binariesPath, 'tonclient.node');
-    if (!fs.existsSync(addonPath)) {
-        await dl('tonclient.node', `tonclient_${bv}_nodejs_addon_${p}`);
-        if (p === 'darwin') {
-            await dl('libtonclientnodejs.dylib', `tonclient_${bv}_nodejs_dylib_${p}`);
+    const binariesSource = process.env.TC_BIN_SRC || 'http://sdkbinaries.tonlabs.io';
+    const currentPlatform = os.platform();
+    for (const entry of Object.entries(files)) {
+        const dstParts = entry[0].split('?');
+        const dstPlatform = dstParts.length > 1 ? dstParts[0].toLowerCase() : currentPlatform;
+        const dst = dstParts[dstParts.length - 1];
+        const fileDstPath = path.resolve(dstPath, dst);
+        if (dstPlatform === currentPlatform && !fs.existsSync(fileDstPath)) {
+            const src = entry[1].replace(/{v}/gi, bv).replace(/{p}/gi, currentPlatform);
+            process.stdout.write(`Downloading ${dst}`);
+            await downloadAndGunzip(binariesSource, fileDstPath, src);
+            process.stdout.write('\n');
         }
     }
 }
+

@@ -36,7 +36,7 @@ export const TONModuleContextHelper = {
         if (library) {
             return library;
         }
-        const message = 'TON SDK JS Library doesn\'t set up';
+        const message = 'TON Client Library doesn\'t set up';
         console.error(message);
         throw new Error(message);
     },

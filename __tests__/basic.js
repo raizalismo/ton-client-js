@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { binariesVersion } from "./_/binaries";
 import { tests} from "./_/init-tests";
 
 beforeAll(tests.init);
@@ -22,8 +21,8 @@ afterAll(tests.done);
 
 test('basic', async () => {
 	const client = tests.client;
-	expect(await client.config.getVersion()).toEqual(binariesVersion);
-	console.log('Get client and binaries version:', await client.config.getVersion())
+	expect(await client.config.getVersion()).toEqual('0.17.0');
+	console.log('Get client and binaries version:', await client.config.getVersion());
 	try {
         await client.crypto.hdkeyXPrvDerivePath("???", "");
     } catch (error) {

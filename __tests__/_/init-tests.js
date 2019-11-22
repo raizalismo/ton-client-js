@@ -10,7 +10,7 @@ const path = require('path');
 const fetch = require('node-fetch');
 const WebSocket = require('websocket');
 
-export const nodeSe = true;
+export const nodeSe = false;
 
 const serversConfig: any = JSON.parse((fs.readFileSync(path.join(__dirname, '..', 'servers.json')): any));
 
@@ -18,10 +18,15 @@ const serversConfig: any = JSON.parse((fs.readFileSync(path.join(__dirname, '..'
 jest.setTimeout(200_000);
 
 async function init() {
-    await ensureBinaries();
+    await ensureBinaries(
+        path.resolve(__dirname, '..', '..', 'package.json'),
+        path.resolve(__dirname), {
+        'tonclient.node': 'tonclient_{v}_nodejs_addon_{p}',
+        'darwin?libtonclientnodejs.dylib': 'tonclient_{v}_nodejs_dylib_{p}',
+    });
 
     //$FlowFixMe
-    const library = require('../tonclient.node');
+    const library = require('./tonclient.node');
     TONClient.setLibrary({
         fetch,
         WebSocket: WebSocket.w3cwebsocket,
@@ -52,7 +57,7 @@ export const tests: {
     config: {
         defaultWorkchain: 0,
         servers: nodeSe ? serversConfig.local : serversConfig.external,
-        log_verbose: false,
+        log_verbose: true,
     },
     client: new TONClient(),
     init,

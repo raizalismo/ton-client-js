@@ -67,8 +67,8 @@ const nodeSeGiverAbi =
 let giverWalletAddressHex = '';
 let giverWalletAddressBase64 = '';
 let giverWalletKeys = {
-    secret: '2245e4f44af8af6bbd15c4a53eb67a8f211d541ddc7c197f74d7830dba6d27fe',
-    public: 'd542f44146f169c6726c8cf70e4cbb3d33d8d842a4afd799ac122c5808d81ba3',
+	secret: '6e9ca582df77a86da93c0668d7f6fbb010459156b434d3059005ef396c825f59',
+	public: '95c06aa743d1f9000dd64b75498f106af4b7e7444234d7de67ea26988f6181df',
 };
 const GiverWalletPackage = {
     abi: {
