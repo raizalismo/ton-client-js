@@ -163,6 +163,7 @@ async function check_giver() {
 export async function get_grams_from_giver(account: string, amount: number = giverRequestAmount) {
     const { contracts, queries } = tests.client;
 
+    console.time(`Get grams from giver to ${account}:`);
     let params: TONContractRunParams;
     if (nodeSe) {
         params = {
@@ -198,6 +199,7 @@ export async function get_grams_from_giver(account: string, amount: number = giv
             'lt',
         );
     }
+    console.timeEnd(`Get grams from giver to ${account}:`);
 }
 
 export async function deploy_with_giver(params: TONContractDeployParams): Promise<TONContractDeployResult> {
@@ -205,13 +207,13 @@ export async function deploy_with_giver(params: TONContractDeployParams): Promis
 
     const message = await contracts.createDeployMessage(params);
     await get_grams_from_giver(message.address);
-    console.log(`Deployed test contract address ${message.address}`);
     tests.deployedContracts.push({
         key: params.keyPair,
         address: message.address,
         abi: params.package.abi,
         giverAddress: nodeSe ? nodeSeGiverAddress : giverWalletAddressHex,
     });
+    console.log(`Deployed contract with address ${message.address}`);
     return contracts.deploy(params);
 }
 
